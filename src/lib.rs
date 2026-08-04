@@ -73,11 +73,6 @@ impl ScreenRecorder {
 
         let old_frame = Arc::new(Mutex::new(first_frame.clone()));
 
-        // FIXME: Verify is next comment is true for the new xcap library,
-        //        This workaround was needed for scap.
-        //
-        // TODO: Remove this after confirmation
-
         // We have to create a thread that consume all our frames to prevent a memory explosion
         let frame_clone = Arc::clone(&old_frame);
         thread::spawn(move || {
