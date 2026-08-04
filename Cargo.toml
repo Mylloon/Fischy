@@ -17,10 +17,14 @@ image = "0.25"
 imageproc = { version = "0.27", optional = true }
 log = "0.4"
 rand = "0.10"
-rdev = { git = "https://github.com/Narsil/rdev", rev="c14f2dc", features = ["wayland"] }
-scap = { git = "https://github.com/Mylloon/scap", branch="0.0.8-with-windows-send" }
+rdev = { git = "https://github.com/Narsil/rdev", rev = "b7e201b", features = ["wayland"] }
 sysinfo = "0.39"
 window_raiser = "0.1"
+xcap = "0.9"
+
+[patch.crates-io]
+# Remove once xcap publishes with https://github.com/nashaofu/xcap/pull/286 patch applied
+xcap = { git = "https://github.com/Mylloon/xcap.git", branch = "fix-frames-kde" }
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

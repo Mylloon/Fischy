@@ -9,13 +9,9 @@ use std::{
 
 use enigo::{Axis, Coordinate::Abs, Enigo, InputResult, Mouse};
 use image::RgbImage;
-use log::warn;
-use rand::Rng;
-use scap::{
-    capturer::{Capturer, Options, Resolution},
-    frame::Frame,
-};
+use rand::RngExt;
 use sysinfo::{ProcessRefreshKind, RefreshKind, System};
+use xcap::{Frame, Monitor};
 
 use crate::utils::{
     colors::ColorTarget,
@@ -60,63 +56,32 @@ impl ScreenRecorder {
     /// # Errors
     /// Can't capture screen
     pub fn new() -> Result<Self, String> {
-        // Check if the platform is supported
-        if !scap::is_supported() {
-            return Err("Platform not supported".into());
-        }
+        let monitor = Monitor::from_point(100, 100)
+            .map_err(|e| format!("Couldn't find any monitor to capture: {e}"))?;
+        let (video_recorder, sx) = monitor
+            .video_recorder()
+            .map_err(|e| format!("Couldn't instantiate the the video recorder: {e}"))?;
 
-        // Check if we have permission to capture screen
-        // If we don't, request it.
-        if !scap::has_permission() {
-            warn!("Permission not granted. Requesting permission...");
-            if !scap::request_permission() {
-                return Err("Permission denied".into());
-            }
-        }
-
-        // Create capturer on primary display
-        let mut capturer = Capturer::build(Options {
-            fps: 10,
-            show_cursor: false,
-            show_highlight: false, // border around what is being captur
-            target: None,          // None means primary display
-            output_resolution: Resolution::Captured,
-            ..Default::default()
-        })
-        .map_err(|e| format!("Can't capture the screen: {e}"))?;
-
-        // Start capturing
-        capturer.start_capture();
-
-        #[cfg(not(target_os = "linux"))]
-        let [width, height] = capturer.get_output_frame_size();
-
-        // Compute from a frame
-        #[cfg(target_os = "linux")]
-        let [width, height] = capturer
-            .get_next_frame()
-            .map(|frame| match frame {
-                Frame::YUVFrame(f) => [f.width, f.height],
-                Frame::RGB(f) => [f.width, f.height],
-                Frame::RGBx(f) => [f.width, f.height],
-                Frame::XBGR(f) => [f.width, f.height],
-                Frame::BGRx(f) => [f.width, f.height],
-                Frame::BGR0(f) => [f.width, f.height],
-                Frame::BGRA(f) => [f.width, f.height],
-            })
-            .map(|l| l.map(i32::cast_unsigned))
-            .map_err(|e| format!("{e}"))?;
+        video_recorder
+            .start()
+            .map_err(|e| format!("Couldn't start the video recording: {e}"))?;
 
         // We will always have a frame
-        let first_frame = capturer
-            .get_next_frame()
-            .map_err(|e| format!("Can't receive frames: {e}"))?;
-        let old_frame = Arc::new(Mutex::new(first_frame));
+        let first_frame = sx
+            .recv()
+            .map_err(|e| format!("Can't screenshot monitor: {e}"))?;
+
+        let old_frame = Arc::new(Mutex::new(first_frame.clone()));
+
+        // FIXME: Verify is next comment is true for the new xcap library,
+        //        This workaround was needed for scap.
+        //
+        // TODO: Remove this after confirmation
 
         // We have to create a thread that consume all our frames to prevent a memory explosion
         let frame_clone = Arc::clone(&old_frame);
         thread::spawn(move || {
-            while let Ok(frame) = capturer.get_next_frame() {
+            while let Ok(frame) = sx.recv() {
                 // Try to store the latest frame
                 if let Ok(mut guard) = frame_clone.try_lock() {
                     *guard = frame;
@@ -126,7 +91,10 @@ impl ScreenRecorder {
 
         Ok(Self {
             old_frame,
-            dimensions: Dimensions { width, height },
+            dimensions: Dimensions {
+                width: first_frame.width,
+                height: first_frame.height,
+            },
         })
     }
 
@@ -143,55 +111,17 @@ impl ScreenRecorder {
     /// Received unprocessable frame
     pub fn take_screenshot(&mut self) -> Result<RgbImage, String> {
         self.take_frame()
-            .and_then(|f| match f {
-                Frame::RGB(rgb) => Ok(RgbImage::from_raw(
-                    rgb.width.cast_unsigned(),
-                    rgb.height.cast_unsigned(),
-                    rgb.data,
-                )),
-                Frame::RGBx(rgb) => Ok(RgbImage::from_raw(
-                    rgb.width.cast_unsigned(),
-                    rgb.height.cast_unsigned(),
-                    rgb.data
+            .map(|f| {
+                RgbImage::from_raw(
+                    f.width,
+                    f.height,
+                    // Frames from XCap are RGBA
+                    f.raw
                         .chunks(4)
                         .flat_map(|pixel| pixel.iter().take(3))
                         .copied()
                         .collect(),
-                )),
-                Frame::XBGR(bgr) => Ok(RgbImage::from_raw(
-                    bgr.width.cast_unsigned(),
-                    bgr.height.cast_unsigned(),
-                    bgr.data
-                        .chunks(4)
-                        .flat_map(|pixel| [pixel[3], pixel[2], pixel[1]])
-                        .collect(),
-                )),
-                Frame::BGRx(bgr) => Ok(RgbImage::from_raw(
-                    bgr.width.cast_unsigned(),
-                    bgr.height.cast_unsigned(),
-                    bgr.data
-                        .chunks(4)
-                        .flat_map(|pixel| [pixel[2], pixel[1], pixel[0]])
-                        .collect(),
-                )),
-                Frame::BGR0(bgr) => Ok(RgbImage::from_raw(
-                    bgr.width.cast_unsigned(),
-                    bgr.height.cast_unsigned(),
-                    bgr.data
-                        .chunks(4)
-                        .flat_map(|pixel| [pixel[2], pixel[1], pixel[0]])
-                        .collect(),
-                )),
-                // Weirdly, we receive here RGBA frames
-                Frame::BGRA(bgra) => Ok(RgbImage::from_raw(
-                    bgra.width.cast_unsigned(),
-                    bgra.height.cast_unsigned(),
-                    bgra.data
-                        .chunks(4)
-                        .flat_map(|pixel| [pixel[0], pixel[1], pixel[2]])
-                        .collect(),
-                )),
-                Frame::YUVFrame(_) => unimplemented!(),
+                )
             })
             .and_then(|f| f.ok_or("Can't convert image from raw data".into()))
     }
