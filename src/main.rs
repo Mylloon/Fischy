@@ -513,11 +513,11 @@ fn reels(
         .move_mouse_ig_abs(safe_point.x.cast_signed(), safe_point.y.cast_signed())
         .expect("Can't move mouse");
 
-    // Click to be sure we are not shaking
+    // Click to be sure we are not shaking, then sleep to prevent reel issue
     enigo
         .button(Button::Left, Click)
         .expect("Can't click before reel");
-    sleep_with_jitter(70, 10, &SHUTDOWN);
+    sleep_with_jitter(500, 10, &SHUTDOWN);
 
     info!("Reeling...");
     // Casting motion
