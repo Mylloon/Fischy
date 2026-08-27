@@ -24,7 +24,7 @@ xcap = "0.9"
 
 [patch.crates-io]
 # Remove once xcap publishes with https://github.com/nashaofu/xcap/pull/286 patch applied
-xcap = { git = "https://github.com/Mylloon/xcap.git", branch = "fix-frames-kde" }
+xcap = { git = "https://github.com/nashaofu/xcap.git", rev = "5c205f2" }
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
