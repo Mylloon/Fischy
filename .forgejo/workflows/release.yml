@@ -13,15 +13,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install dependencies
         run: |
           apt-get update &&
-          apt-get install -y clang libdbus-1-dev libpipewire-0.3-dev libinput-dev libxkbcommon-dev
+          apt-get install -y  \
+          libwayland-dev libpipewire-0.3-dev clang libudev-dev libegl1-mesa-dev libinput-dev libxkbcommon-dev libgbm-dev
 
       - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache: false
           target: x86_64-unknown-linux-gnu
@@ -42,10 +43,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache: false
           target: x86_64-pc-windows-gnu
