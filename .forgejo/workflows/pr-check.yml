@@ -12,10 +12,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run format check
         run: cargo fmt --check
+
+      - name: Install dependencies
+        run: |
+          apt-get update &&
+          apt-get install -y clang libdbus-1-dev libpipewire-0.3-dev libinput-dev libxkbcommon-dev
 
       - name: Build linux
         run: cargo build --target x86_64-unknown-linux-gnu
