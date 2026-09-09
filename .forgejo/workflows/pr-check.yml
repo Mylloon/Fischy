@@ -28,7 +28,7 @@ jobs:
         run: |
           apt-get update &&
           apt-get install -y  \
-          libwayland-dev libpipewire-0.3-dev clang libudev-dev libegl1-mesa-dev libinput-dev libxkbcommon-dev libgbm-dev
+          libwayland-dev libpipewire-0.3-dev clang libudev-dev libegl1-mesa-dev libinput-dev libxkbcommon-dev libgbm-dev mingw-w64
 
       - name: Build linux
         run: cargo build --target x86_64-unknown-linux-gnu
