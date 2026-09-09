@@ -1,0 +1,24 @@
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  lint-and-format:
+    runs-on: docker
+    container:
+      image: cimg/rust:1.98-node
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: cargo build
+
+      - name: Run format check
+        run: cargo fmt --check
+
+      - name: Run Clippy
+        run: cargo clippy
