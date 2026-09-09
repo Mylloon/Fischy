@@ -14,11 +14,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build
-        run: cargo build
-
       - name: Run format check
         run: cargo fmt --check
 
-      - name: Run Clippy
-        run: cargo clippy
+      - name: Build linux
+        run: cargo build --target x86_64-unknown-linux-gnu
+
+      - name: Build windows
+        run: cargo build --target x86_64-pc-windows-gnu
+
+      - name: Run Clippy linux
+        run: cargo clippy --target x86_64-unknown-linux-gnu
+
+      - name: Run Clippy windows
+        run: cargo clippy --target x86_64-pc-windows-gnu
